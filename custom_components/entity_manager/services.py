@@ -15,6 +15,11 @@ SERVICE_DISABLE_ENTITY = "disable_entity"
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Set up services for the Entity Manager integration."""
     
+    # Check if services are already registered
+    if hass.services.has_service(DOMAIN, SERVICE_ENABLE_ENTITY):
+        _LOGGER.debug("Services already registered, skipping")
+        return
+    
     async def async_enable_entity(call: ServiceCall) -> None:
         """Enable an entity."""
         entity_id = call.data.get("entity_id")
