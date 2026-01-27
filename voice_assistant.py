@@ -16,7 +16,7 @@ class EnableEntityIntentHandler(intent.IntentHandler):
     
     intent_type = INTENT_ENABLE_ENTITY
     
-    async def async_handle(self, intent_obj: intent.IntentRequest) -> intent.IntentResponse:
+    async def async_handle(self, intent_obj) -> intent.IntentResponse:
         """Handle the enable entity intent."""
         entity_id = intent_obj.slots.get("entity", {}).get("value")
         
@@ -44,7 +44,7 @@ class DisableEntityIntentHandler(intent.IntentHandler):
     
     intent_type = INTENT_DISABLE_ENTITY
     
-    async def async_handle(self, intent_obj: intent.IntentRequest) -> intent.IntentResponse:
+    async def async_handle(self, intent_obj) -> intent.IntentResponse:
         """Handle the disable entity intent."""
         entity_id = intent_obj.slots.get("entity", {}).get("value")
         
