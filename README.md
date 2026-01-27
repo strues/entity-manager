@@ -15,13 +15,22 @@ This integration can be added to HACS for easier installation and updates.
 
 ## Configuration
 
-This integration is automatically set up and requires no configuration. Simply add it to your `configuration.yaml`:
+This integration can be added through the Home Assistant UI:
 
-```yaml
-entity_manager:
-```
+1. Go to **Settings** → **Devices & Services**
+2. Click **+ Add Integration**
+3. Search for "Entity Manager"
+4. Click to add it
 
-Then restart Home Assistant.
+No additional configuration is required.
+
+## Features
+
+- **Dashboard Card**: Manage entities directly from your Lovelace dashboard
+- **Services**: Enable/disable entities programmatically through automations and scripts
+- **Voice Assistant Support**: Control entities through voice commands (requires additional setup)
+- **WebSocket API**: Real-time entity management through WebSocket commands
+- **Bulk Operations**: Enable or disable multiple entities at once
 
 ## Services
 
@@ -47,7 +56,58 @@ Disable an entity.
 
 **Service Data:**
 - `entity_id` (required): The entity ID to disable.
+Voice Assistant Integration
 
+Entity Manager provides services that can be used with voice assistants like Alexa and Google Home through automations.
+
+### Setup Voice Commands
+
+Create automations to respond to voice commands:
+
+```yaml
+automation:
+  - alias: "Voice - Disable Entity"
+    trigger:
+      - platform: conversation
+        command: "disable entity *"
+    action:
+      - service: entity_manager.disable_entity
+        data:
+          entity_id: "{{ trigger.sentence | replace('disable entity ', '') }}"
+  
+  - alias: "Voice - Enable Entity"
+    trigger:
+      - platform: conversation
+        command: "enable entity *"
+    action:
+      - service: entity_manager.enable_entity
+        data:
+          entity_id: "{{ trigger.sentence | replace('enable entity ', '') }}"
+```
+
+### Using with Alexa/Google Home
+
+1. Set up Home Assistant Cloud or Nabu Casa
+2. Expose the automation to your voice assistant
+3. Say: "Alexa, turn on voice disable entity" or "Hey Google, activate voice enable entity"
+
+Alternatively, create routines in your Alexa or Google Home app that call the Entity Manager services directly.
+
+## Dashboard Card
+
+Entity Manager includes a Lovelace card for managing entities from your dashboard:
+
+```yaml
+type: custom:entity-manager-card
+```
+
+The card provides:
+- Search and filter entities by ID, device, or integration
+- Multi-select entity management
+- Bulk enable/disable operations
+- Expandable groups by integration and device
+
+## 
 **Example:**
 ```yaml
 service: entity_manager.disable_entity
