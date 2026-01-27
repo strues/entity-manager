@@ -43,33 +43,5 @@ class EntityManagerOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Manage the options."""
-        if user_input is not None:
-            # Update the config entry options
-            return self.async_create_entry(title="", data=user_input)
-
-        # Get all available integrations from config entries
-        integrations = {}
-        for entry in self.hass.config_entries.async_entries():
-            if entry.domain != DOMAIN:  # Exclude entity_manager itself
-                display_name = entry.title or entry.domain.replace("_", " ").title()
-                integrations[entry.domain] = display_name
-        
-        # Sort integrations alphabetically by display name
-        sorted_integrations = dict(sorted(integrations.items(), key=lambda x: x[1]))
-        
-        # Get currently selected integrations from options
-        current_integrations = self.config_entry.options.get("managed_integrations", [])
-
-        data_schema = vol.Schema(
-            {
-                vol.Optional(
-                    "managed_integrations",
-                    default=current_integrations,
-                ): cv.multi_select(sorted_integrations),
-            }
-        )
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=data_schema,
-        )
+        # For now, just return abort - options coming soon
+        return self.async_abort(reason="no_options_available")

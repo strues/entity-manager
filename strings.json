@@ -16,6 +16,9 @@
           "managed_integrations": "Select integrations to manage"
         }
       }
+    },
+    "abort": {
+      "no_options_available": "No configuration options available yet. Entity Manager works automatically with all integrations."
     }
   }
 }
