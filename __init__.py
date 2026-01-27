@@ -3,12 +3,17 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.components import frontend
+from homeassistant.helpers import entity_registry as er
 
 from .websocket_api import async_setup_ws_api
+from .voice_assistant import async_setup_intents
 
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "entity_manager"
+
+SERVICE_ENABLE_ENTITY = "enable_entity"
+SERVICE_DISABLE_ENTITY = "disable_entity"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -21,6 +26,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # Register WebSocket API
     async_setup_ws_api(hass)
+
+    # Set up voice assistant intents
+    await async_setup_intents(hass)
+
+    # Register services
+    entity_reg = er.async_get(hass)
+
+    async def handle_enable_entity(call):
+        """Handle enable entity service call."""
+        entity_id = call.data.get("entity_id")
+        if entity_id:
+            entity_reg.async_update_entity(entity_id, disabled_by=None)
+            _LOGGER.info("Enabled entity: %s", entity_id)
+
+    async def handle_disable_entity(call):
+        """Handle disable entity service call."""
+        entity_id = call.data.get("entity_id")
+        if entity_id:
+            entity_reg.async_update_entity(
+                entity_id, 
+                disabled_by=er.RegistryEntryDisabler.USER
+            )
+            _LOGGER.info("Disabled entity: %s", entity_id)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ENABLE_ENTITY,
+        handle_enable_entity,
+        description="Enable an entity",
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DISABLE_ENTITY,
+        handle_disable_entity,
+        description="Disable an entity",
+    )
 
     # Register the sidebar panel
     frontend.async_register_built_in_panel(
