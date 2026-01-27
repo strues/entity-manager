@@ -4,8 +4,6 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import callback
-from homeassistant.helpers import config_validation as cv
 from homeassistant.data_entry_flow import FlowResult
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,18 +28,3 @@ class EntityManagerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema({}),
         )
-
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
-        """Get the options flow for this config entry."""
-        return EntityManagerOptionsFlow(config_entry)
-
-
-class EntityManagerOptionsFlow(config_entries.OptionsFlow):
-    """Options flow for Entity Manager."""
-
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Manage the options."""
-        # For now, just return abort - options coming soon
-        return self.async_abort(reason="no_options_available")
