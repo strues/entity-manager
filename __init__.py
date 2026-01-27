@@ -54,14 +54,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         DOMAIN,
         SERVICE_ENABLE_ENTITY,
         handle_enable_entity,
-        description="Enable an entity",
     )
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_DISABLE_ENTITY,
         handle_disable_entity,
-        description="Disable an entity",
     )
 
     # Register the sidebar panel
