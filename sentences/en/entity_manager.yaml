@@ -3,15 +3,15 @@ intents:
   entity_manager_enable_entity:
     data:
       - sentences:
-          - "enable {entity}"
-          - "enable the {entity}"
-          - "turn on {entity}"
-          - "activate {entity}"
+          - "enable entity {entity}"
+          - "enable the entity {entity}"
+          - "activate entity {entity}"
+          - "registry enable {entity}"
   
   entity_manager_disable_entity:
     data:
       - sentences:
-          - "disable {entity}"
-          - "disable the {entity}"
-          - "turn off {entity}"
-          - "deactivate {entity}"
+          - "disable entity {entity}"
+          - "disable the entity {entity}"
+          - "deactivate entity {entity}"
+          - "registry disable {entity}"
