@@ -23,14 +23,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async_setup_ws_api(hass)
 
     # Serve the frontend assets
-    await hass.http.async_register_static_paths(
-        [
-            {
-                "url": f"/{DOMAIN}",
-                "path": hass.config.path(f"custom_components/{DOMAIN}/frontend"),
-                "cache_headers": False,
-            }
-        ]
+    hass.http.register_static_path(
+        f"/{DOMAIN}",
+        hass.config.path(f"custom_components/{DOMAIN}/frontend"),
+        cache_headers=False,
     )
 
     # Register the sidebar panel
