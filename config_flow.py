@@ -5,7 +5,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers import selector
+from homeassistant.helpers import config_validation as cv
 from homeassistant.data_entry_flow import FlowResult
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,34 +50,22 @@ class EntityManagerOptionsFlow(config_entries.OptionsFlow):
         # Get all available integrations from config entries
         integrations = {}
         for entry in self.hass.config_entries.async_entries():
-            if entry.domain not in integrations and entry.domain != DOMAIN:
-                integrations[entry.domain] = entry.title or entry.domain.replace("_", " ").title()
+            if entry.domain != DOMAIN:  # Exclude entity_manager itself
+                display_name = entry.title or entry.domain.replace("_", " ").title()
+                integrations[entry.domain] = display_name
         
-        # Sort integrations alphabetically
+        # Sort integrations alphabetically by display name
         sorted_integrations = dict(sorted(integrations.items(), key=lambda x: x[1]))
         
-        # Get currently selected integrations
+        # Get currently selected integrations from options
         current_integrations = self.config_entry.options.get("managed_integrations", [])
-        
-        # Create options list
-        integration_options = [
-            selector.SelectOptionDict(value=domain, label=title)
-            for domain, title in sorted_integrations.items()
-        ]
 
         data_schema = vol.Schema(
             {
                 vol.Optional(
                     "managed_integrations",
                     default=current_integrations,
-                    description={"suggested_value": current_integrations},
-                ): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=integration_options,
-                        multiple=True,
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    )
-                ),
+                ): cv.multi_select(sorted_integrations),
             }
         )
 
