@@ -1,8 +1,8 @@
 """Voice assistant intents for Entity Manager."""
 import logging
-from typing import Any
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import intent
 
 _LOGGER = logging.getLogger(__name__)
@@ -11,12 +11,13 @@ INTENT_ENABLE_ENTITY = "entity_manager_enable_entity"
 INTENT_DISABLE_ENTITY = "entity_manager_disable_entity"
 
 
-async def async_setup_intents(hass: HomeAssistant) -> None:
-    """Set up voice assistant intents."""
+class EnableEntityIntentHandler(intent.IntentHandler):
+    """Handle enable entity intent."""
     
-    @intent.register_handler(INTENT_ENABLE_ENTITY)
-    async def handle_enable_entity(intent_obj: intent.IntentHandler) -> intent.IntentResponse:
-        """Handle enable entity intent."""
+    intent_type = INTENT_ENABLE_ENTITY
+    
+    async def async_handle(self, intent_obj: intent.IntentRequest) -> intent.IntentResponse:
+        """Handle the enable entity intent."""
         entity_id = intent_obj.slots.get("entity", {}).get("value")
         
         if not entity_id:
@@ -24,9 +25,7 @@ async def async_setup_intents(hass: HomeAssistant) -> None:
             response.async_set_speech("Please specify which entity to enable")
             return response
         
-        # Call the enable entity websocket command
-        from homeassistant.helpers import entity_registry as er
-        entity_reg = er.async_get(hass)
+        entity_reg = er.async_get(self.hass)
         
         try:
             entity_reg.async_update_entity(entity_id, disabled_by=None)
@@ -38,10 +37,15 @@ async def async_setup_intents(hass: HomeAssistant) -> None:
             response = intent_obj.create_response()
             response.async_set_speech(f"Failed to enable {entity_id}")
             return response
+
+
+class DisableEntityIntentHandler(intent.IntentHandler):
+    """Handle disable entity intent."""
     
-    @intent.register_handler(INTENT_DISABLE_ENTITY)
-    async def handle_disable_entity(intent_obj: intent.IntentHandler) -> intent.IntentResponse:
-        """Handle disable entity intent."""
+    intent_type = INTENT_DISABLE_ENTITY
+    
+    async def async_handle(self, intent_obj: intent.IntentRequest) -> intent.IntentResponse:
+        """Handle the disable entity intent."""
         entity_id = intent_obj.slots.get("entity", {}).get("value")
         
         if not entity_id:
@@ -49,9 +53,7 @@ async def async_setup_intents(hass: HomeAssistant) -> None:
             response.async_set_speech("Please specify which entity to disable")
             return response
         
-        # Call the disable entity websocket command
-        from homeassistant.helpers import entity_registry as er
-        entity_reg = er.async_get(hass)
+        entity_reg = er.async_get(self.hass)
         
         try:
             entity_reg.async_update_entity(
@@ -66,3 +68,9 @@ async def async_setup_intents(hass: HomeAssistant) -> None:
             response = intent_obj.create_response()
             response.async_set_speech(f"Failed to disable {entity_id}")
             return response
+
+
+async def async_setup_intents(hass: HomeAssistant) -> None:
+    """Set up voice assistant intents."""
+    intent.async_register(hass, EnableEntityIntentHandler())
+    intent.async_register(hass, DisableEntityIntentHandler())
