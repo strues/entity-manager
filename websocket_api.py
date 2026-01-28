@@ -280,7 +280,7 @@ async def handle_bulk_rename(
 
     Applies a text find/replace across the selected entities.
     target="name" replaces in the friendly name.
-    target="entity_id" replaces in the entity ID (the part after the domain prefix).
+    target="entity_id" replaces in the object_id portion only (after the domain.).
     """
     entity_reg = er.async_get(hass)
     entity_ids = msg["entity_ids"]
@@ -294,14 +294,64 @@ async def handle_bulk_rename(
 
     results: dict[str, list] = {"success": [], "failed": [], "skipped": []}
 
-    for entity_id in entity_ids:
-        try:
+    # For entity_id renames, pre-compute the full rename map and check for
+    # collisions before applying any changes.
+    if target == "entity_id":
+        rename_map: dict[str, str] = {}
+        for entity_id in entity_ids:
             entity_entry = entity_reg.async_get(entity_id)
             if entity_entry is None:
                 results["failed"].append({"entity_id": entity_id, "error": "Entity not found"})
                 continue
 
-            if target == "name":
+            # Only replace within the object_id (part after domain.)
+            domain, object_id = entity_id.split(".", 1)
+            if find_str not in object_id:
+                results["skipped"].append(entity_id)
+                continue
+            new_object_id = object_id.replace(find_str, replace_str)
+            new_id = f"{domain}.{new_object_id}"
+            if new_id == entity_id:
+                results["skipped"].append(entity_id)
+                continue
+            rename_map[entity_id] = new_id
+
+        # Check for collisions: target ID already exists or duplicates in batch
+        seen_targets: set[str] = set()
+        collision_ids: list[str] = []
+        for old_id, new_id in rename_map.items():
+            existing = entity_reg.async_get(new_id)
+            # Allow if the existing entry is another entity being renamed away
+            if existing is not None and existing.entity_id not in rename_map:
+                collision_ids.append(old_id)
+            elif new_id in seen_targets:
+                collision_ids.append(old_id)
+            else:
+                seen_targets.add(new_id)
+
+        for coll_id in collision_ids:
+            target_id = rename_map.pop(coll_id)
+            results["failed"].append(
+                {"entity_id": coll_id, "error": f"Target '{target_id}' already exists or conflicts"}
+            )
+
+        # Apply validated renames
+        for old_id, new_id in rename_map.items():
+            try:
+                entity_reg.async_update_entity(old_id, new_entity_id=new_id)
+                results["success"].append({"entity_id": old_id, "new_entity_id": new_id})
+            except Exception as err:
+                _LOGGER.error("Error renaming entity %s -> %s: %s", old_id, new_id, err)
+                results["failed"].append({"entity_id": old_id, "error": str(err)})
+
+    elif target == "name":
+        for entity_id in entity_ids:
+            try:
+                entity_entry = entity_reg.async_get(entity_id)
+                if entity_entry is None:
+                    results["failed"].append({"entity_id": entity_id, "error": "Entity not found"})
+                    continue
+
                 current_name = (
                     entity_entry.name
                     or entity_entry.original_name
@@ -314,19 +364,8 @@ async def handle_bulk_rename(
                 entity_reg.async_update_entity(entity_id, name=new_name)
                 results["success"].append({"entity_id": entity_id, "old_name": current_name, "new_name": new_name})
 
-            elif target == "entity_id":
-                if find_str not in entity_id:
-                    results["skipped"].append(entity_id)
-                    continue
-                new_id = entity_id.replace(find_str, replace_str)
-                if new_id == entity_id:
-                    results["skipped"].append(entity_id)
-                    continue
-                entity_reg.async_update_entity(entity_id, new_entity_id=new_id)
-                results["success"].append({"entity_id": entity_id, "new_entity_id": new_id})
-
-        except Exception as err:
-            _LOGGER.error("Error renaming entity %s: %s", entity_id, err)
-            results["failed"].append({"entity_id": entity_id, "error": str(err)})
+            except Exception as err:
+                _LOGGER.error("Error renaming entity %s: %s", entity_id, err)
+                results["failed"].append({"entity_id": entity_id, "error": str(err)})
 
     connection.send_result(msg["id"], results)

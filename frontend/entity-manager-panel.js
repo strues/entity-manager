@@ -974,8 +974,13 @@ class EntityManagerPanel extends HTMLElement {
         }
         return `<div class="preview-item preview-skip">${entityId} — no match</div>`;
       } else {
-        if (entityId.includes(findStr)) {
-          const newId = entityId.replace(findStr, replaceStr);
+        // Only replace within the object_id (after domain.)
+        const dotIdx = entityId.indexOf('.');
+        const domain = entityId.substring(0, dotIdx);
+        const objectId = entityId.substring(dotIdx + 1);
+        if (objectId.includes(findStr)) {
+          const newObjectId = objectId.replace(findStr, replaceStr);
+          const newId = `${domain}.${newObjectId}`;
           matchCount++;
           return `<div class="preview-item">
             <div><span class="preview-old">${this.escapeHtml(entityId)}</span></div>
