@@ -10,6 +10,7 @@ enable_entity:
       selector:
         entity:
 
+<<<<<<< Updated upstream
 disable_entity:
   name: Disable Entity
   description: Disable an entity.
@@ -47,3 +48,45 @@ rename_entity:
       example: "sensor.kitchen_temp"
       selector:
         text:
+=======
+disable_entity:
+  name: Disable Entity
+  description: Disable an entity.
+  fields:
+    entity_id:
+      name: Entity ID
+      description: The entity ID to disable.
+      required: true
+      example: "sensor.my_sensor"
+      selector:
+        entity:
+
+bulk_rename:
+  name: Bulk Rename
+  description: Rename multiple entities in the entity registry.
+  fields:
+    renames:
+      name: Renames
+      description: List of rename operations (entity_id -> new_entity_id).
+      required: true
+      example:
+        - entity_id: sensor.old_name
+          new_entity_id: sensor.new_name
+      selector:
+        object:
+          multiple: true
+    dry_run:
+      name: Dry Run
+      description: If true, only log planned renames.
+      required: false
+      default: false
+      selector:
+        boolean:
+    skip_missing:
+      name: Skip Missing
+      description: If true, skip entities that are not found.
+      required: false
+      default: true
+      selector:
+        boolean:
+>>>>>>> Stashed changes

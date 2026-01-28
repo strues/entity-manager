@@ -31,10 +31,11 @@ No additional configuration is required.
 - **Voice Assistant Support**: Control entities through voice commands (requires additional setup)
 - **WebSocket API**: Real-time entity management through WebSocket commands
 - **Bulk Operations**: Enable or disable multiple entities at once
+- **Bulk Rename**: Rename multiple entities in the registry in one service call
 
 ## Services
 
-The Entity Manager integration provides two services for managing entities:
+The Entity Manager integration provides services for managing entities:
 
 ### `entity_manager.enable_entity`
 
@@ -56,6 +57,28 @@ Disable an entity.
 
 **Service Data:**
 - `entity_id` (required): The entity ID to disable.
+
+### `entity_manager.bulk_rename`
+
+Rename multiple entities in the registry.
+
+**Service Data:**
+- `renames` (required): List of `entity_id` → `new_entity_id` rename operations.
+- `dry_run` (optional): Log planned renames without applying changes.
+- `skip_missing` (optional): Skip entities that are not found (default true).
+
+**Example:**
+```yaml
+service: entity_manager.bulk_rename
+data:
+  renames:
+    - entity_id: sensor.kitchen_temperature
+      new_entity_id: sensor.kitchen_temp
+    - entity_id: sensor.office_humidity
+      new_entity_id: sensor.office_hum
+  dry_run: false
+  skip_missing: true
+```
 Voice Assistant Integration
 
 Entity Manager provides services that can be used with voice assistants like Alexa and Google Home through automations.

@@ -1,10 +1,10 @@
 {
   "domain": "entity_manager",
-  "name": "Entity Manager",
-  "version": "1.0.0",
-  "documentation": "https://github.com/TheIcelandicguy/entity-manager",
+  "name": "Entity Manager (Experimental)",
+  "version": "1.1.0-beta.1",
+  "documentation": "https://github.com/strues/entity-manager",
   "requirements": [],
-  "codeowners": ["@TheIcelandicguy"],
+  "codeowners": ["@TheIcelandicguy", "@strues"],
   "iot_class": "local_push",
   "config_flow": false
 }
