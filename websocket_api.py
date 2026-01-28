@@ -18,6 +18,8 @@ def async_setup_ws_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, handle_disable_entity)
     websocket_api.async_register_command(hass, handle_bulk_enable)
     websocket_api.async_register_command(hass, handle_bulk_disable)
+    websocket_api.async_register_command(hass, handle_rename_entity)
+    websocket_api.async_register_command(hass, handle_bulk_rename)
 
 
 @websocket_api.websocket_command(
@@ -84,6 +86,7 @@ async def handle_get_disabled_entities(
                     "platform": platform,
                     "device_id": entity.device_id,
                     "disabled_by": entity.disabled_by.value if entity.disabled_by else None,
+                    "name": entity.name,
                     "original_name": entity.original_name,
                     "entity_category": entity.entity_category.value if entity.entity_category else None,
                     "is_disabled": is_disabled,
@@ -202,9 +205,9 @@ async def handle_bulk_disable(
     """Handle bulk disable request."""
     entity_reg = er.async_get(hass)
     entity_ids = msg["entity_ids"]
-    
+
     results = {"success": [], "failed": []}
-    
+
     for entity_id in entity_ids:
         try:
             entity_reg.async_update_entity(entity_id, disabled_by=er.RegistryEntryDisabler.USER)
@@ -212,5 +215,118 @@ async def handle_bulk_disable(
         except Exception as err:
             _LOGGER.error("Error disabling entity %s: %s", entity_id, err)
             results["failed"].append({"entity_id": entity_id, "error": str(err)})
-    
+
+    connection.send_result(msg["id"], results)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "entity_manager/rename_entity",
+        vol.Required("entity_id"): str,
+        vol.Optional("name"): vol.Any(str, None),
+        vol.Optional("new_entity_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def handle_rename_entity(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle rename entity request.
+
+    Supports renaming the friendly name (name) and/or the entity ID (new_entity_id).
+    Pass name=None to reset the friendly name back to the integration default.
+    """
+    entity_reg = er.async_get(hass)
+    entity_id = msg["entity_id"]
+
+    try:
+        kwargs: dict[str, Any] = {}
+        if "name" in msg:
+            kwargs["name"] = msg["name"]
+        if "new_entity_id" in msg:
+            kwargs["new_entity_id"] = msg["new_entity_id"]
+
+        if not kwargs:
+            connection.send_error(msg["id"], "no_changes", "No rename parameters provided")
+            return
+
+        entity_reg.async_update_entity(entity_id, **kwargs)
+        connection.send_result(msg["id"], {"success": True})
+    except Exception as err:
+        _LOGGER.error("Error renaming entity %s: %s", entity_id, err)
+        connection.send_error(msg["id"], "rename_failed", str(err))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "entity_manager/bulk_rename",
+        vol.Required("entity_ids"): [str],
+        vol.Required("find"): str,
+        vol.Required("replace"): str,
+        vol.Optional("target", default="name"): vol.In(["name", "entity_id"]),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def handle_bulk_rename(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle bulk rename request using find/replace.
+
+    Applies a text find/replace across the selected entities.
+    target="name" replaces in the friendly name.
+    target="entity_id" replaces in the entity ID (the part after the domain prefix).
+    """
+    entity_reg = er.async_get(hass)
+    entity_ids = msg["entity_ids"]
+    find_str = msg["find"]
+    replace_str = msg["replace"]
+    target = msg.get("target", "name")
+
+    if not find_str:
+        connection.send_error(msg["id"], "invalid_find", "Find string cannot be empty")
+        return
+
+    results: dict[str, list] = {"success": [], "failed": [], "skipped": []}
+
+    for entity_id in entity_ids:
+        try:
+            entity_entry = entity_reg.async_get(entity_id)
+            if entity_entry is None:
+                results["failed"].append({"entity_id": entity_id, "error": "Entity not found"})
+                continue
+
+            if target == "name":
+                current_name = (
+                    entity_entry.name
+                    or entity_entry.original_name
+                    or entity_id.split(".", 1)[1].replace("_", " ")
+                )
+                if find_str not in current_name:
+                    results["skipped"].append(entity_id)
+                    continue
+                new_name = current_name.replace(find_str, replace_str)
+                entity_reg.async_update_entity(entity_id, name=new_name)
+                results["success"].append({"entity_id": entity_id, "old_name": current_name, "new_name": new_name})
+
+            elif target == "entity_id":
+                if find_str not in entity_id:
+                    results["skipped"].append(entity_id)
+                    continue
+                new_id = entity_id.replace(find_str, replace_str)
+                if new_id == entity_id:
+                    results["skipped"].append(entity_id)
+                    continue
+                entity_reg.async_update_entity(entity_id, new_entity_id=new_id)
+                results["success"].append({"entity_id": entity_id, "new_entity_id": new_id})
+
+        except Exception as err:
+            _LOGGER.error("Error renaming entity %s: %s", entity_id, err)
+            results["failed"].append({"entity_id": entity_id, "error": str(err)})
+
     connection.send_result(msg["id"], results)

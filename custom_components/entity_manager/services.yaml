@@ -21,3 +21,29 @@ disable_entity:
       example: "sensor.my_sensor"
       selector:
         entity:
+
+rename_entity:
+  name: Rename Entity
+  description: Rename an entity's friendly name and/or entity ID.
+  fields:
+    entity_id:
+      name: Entity ID
+      description: The current entity ID to rename.
+      required: true
+      example: "sensor.my_sensor"
+      selector:
+        entity:
+    name:
+      name: New Name
+      description: The new friendly name for the entity.
+      required: false
+      example: "Kitchen Temperature"
+      selector:
+        text:
+    new_entity_id:
+      name: New Entity ID
+      description: The new entity ID.
+      required: false
+      example: "sensor.kitchen_temp"
+      selector:
+        text:

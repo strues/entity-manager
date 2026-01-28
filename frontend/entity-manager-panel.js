@@ -282,6 +282,105 @@ class EntityManagerPanel extends HTMLElement {
           align-items: center;
           margin-right: 12px;
         }
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 999;
+        }
+        .modal {
+          background: var(--card-background-color, #fff);
+          border-radius: 12px;
+          padding: 24px;
+          min-width: 500px;
+          max-width: 700px;
+          max-height: 80vh;
+          overflow-y: auto;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+        .modal h2 {
+          margin: 0 0 16px 0;
+          font-weight: 500;
+        }
+        .modal-field {
+          margin-bottom: 12px;
+        }
+        .modal-field label {
+          display: block;
+          font-size: 12px;
+          color: var(--secondary-text-color);
+          margin-bottom: 4px;
+          text-transform: uppercase;
+        }
+        .modal-field input, .modal-field select {
+          width: 100%;
+          padding: 8px 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          font-size: 14px;
+          background: var(--card-background-color, #fff);
+          color: var(--primary-text-color);
+          box-sizing: border-box;
+        }
+        .modal-actions {
+          display: flex;
+          gap: 8px;
+          justify-content: flex-end;
+          margin-top: 16px;
+        }
+        .preview-list {
+          max-height: 300px;
+          overflow-y: auto;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          margin-top: 12px;
+        }
+        .preview-item {
+          padding: 8px 12px;
+          border-bottom: 1px solid var(--divider-color);
+          font-size: 13px;
+        }
+        .preview-item:last-child {
+          border-bottom: none;
+        }
+        .preview-old {
+          color: var(--error-color, #db4437);
+          text-decoration: line-through;
+        }
+        .preview-new {
+          color: var(--success-color, #43a047);
+        }
+        .preview-skip {
+          color: var(--secondary-text-color);
+          font-style: italic;
+        }
+        .rename-result {
+          margin-top: 12px;
+          padding: 12px;
+          border-radius: 4px;
+          font-size: 13px;
+        }
+        .rename-result.success {
+          background: rgba(67, 160, 71, 0.1);
+          color: var(--success-color, #43a047);
+        }
+        .rename-result.error {
+          background: rgba(219, 68, 55, 0.1);
+          color: var(--error-color, #db4437);
+        }
+        .btn-rename {
+          background: var(--accent-color, #ff9800);
+          color: white;
+        }
+        .btn-rename:hover {
+          filter: brightness(0.9);
+        }
       </style>
       
       <div class="header">
@@ -309,6 +408,9 @@ class EntityManagerPanel extends HTMLElement {
         <button class="btn btn-secondary" id="disable-selected">
           Disable Selected (<span id="selected-count-2">0</span>)
         </button>
+        <button class="btn btn-rename" id="rename-selected">
+          Rename Selected (<span id="selected-count-3">0</span>)
+        </button>
         <button class="btn btn-secondary" id="refresh">Refresh</button>
       </div>
       
@@ -330,7 +432,11 @@ class EntityManagerPanel extends HTMLElement {
     this.content.querySelector('#disable-selected').addEventListener('click', () => {
       this.bulkDisable();
     });
-    
+
+    this.content.querySelector('#rename-selected').addEventListener('click', () => {
+      this.openBulkRenameModal();
+    });
+
     this.content.querySelector('#refresh').addEventListener('click', () => {
       this.loadData();
     });
@@ -412,6 +518,7 @@ class EntityManagerPanel extends HTMLElement {
     // Update selected count in buttons
     this.content.querySelector('#selected-count').textContent = this.selectedEntities.size;
     this.content.querySelector('#selected-count-2').textContent = this.selectedEntities.size;
+    this.content.querySelector('#selected-count-3').textContent = this.selectedEntities.size;
     
     // Render integrations
     if (filteredData.length === 0) {
@@ -517,6 +624,9 @@ class EntityManagerPanel extends HTMLElement {
           ${isDisabled ? `<span class="entity-badge">disabled${entity.disabled_by ? ` by: ${entity.disabled_by}` : ''}</span>` : '<span class="entity-badge">enabled</span>'}
         </div>
         <div class="entity-actions">
+          <button class="icon-btn" data-action="rename-entity" data-entity="${entity.entity_id}" title="Rename">
+            ✎
+          </button>
           <button class="icon-btn" data-action="${action}" data-entity="${entity.entity_id}" title="${actionLabel}">
             ${actionIcon}
           </button>
@@ -593,6 +703,8 @@ class EntityManagerPanel extends HTMLElement {
           await this.enableIntegration(btn.dataset.integration);
         } else if (action === 'disable-entity') {
           await this.disableEntity(btn.dataset.entity);
+        } else if (action === 'rename-entity') {
+          this.openSingleRenameModal(btn.dataset.entity);
         }
       });
     });
@@ -698,6 +810,239 @@ class EntityManagerPanel extends HTMLElement {
       console.error('Error disabling entity:', err);
       alert(`Failed to disable ${entityId}: ${err.message}`);
     }
+  }
+
+  // --- Rename methods ---
+
+  findEntityData(entityId) {
+    for (const integration of this.data) {
+      for (const device of Object.values(integration.devices)) {
+        const entity = device.entities.find(e => e.entity_id === entityId);
+        if (entity) return entity;
+      }
+    }
+    return null;
+  }
+
+  openSingleRenameModal(entityId) {
+    const entity = this.findEntityData(entityId);
+    const currentName = entity
+      ? (entity.name || entity.original_name || entityId.split('.')[1].replace(/_/g, ' '))
+      : entityId.split('.')[1].replace(/_/g, ' ');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Rename Entity</h2>
+        <div class="modal-field">
+          <label>Entity ID</label>
+          <input type="text" id="rename-entity-id" value="${entityId}" />
+        </div>
+        <div class="modal-field">
+          <label>Friendly Name</label>
+          <input type="text" id="rename-name" value="${this.escapeHtml(currentName)}" />
+        </div>
+        <div id="rename-result"></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="rename-cancel">Cancel</button>
+          <button class="btn btn-primary" id="rename-apply">Rename</button>
+        </div>
+      </div>
+    `;
+
+    this.appendChild(overlay);
+
+    overlay.querySelector('#rename-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelector('#rename-apply').addEventListener('click', async () => {
+      const newEntityId = overlay.querySelector('#rename-entity-id').value.trim();
+      const newName = overlay.querySelector('#rename-name').value.trim();
+      const resultEl = overlay.querySelector('#rename-result');
+
+      try {
+        const params = { type: 'entity_manager/rename_entity', entity_id: entityId };
+        if (newName && newName !== currentName) params.name = newName;
+        if (newEntityId && newEntityId !== entityId) params.new_entity_id = newEntityId;
+
+        if (!params.name && !params.new_entity_id) {
+          resultEl.innerHTML = '<div class="rename-result error">No changes detected.</div>';
+          return;
+        }
+
+        await this.hass.callWS(params);
+        resultEl.innerHTML = '<div class="rename-result success">Renamed successfully.</div>';
+        setTimeout(() => { overlay.remove(); this.loadData(); }, 800);
+      } catch (err) {
+        resultEl.innerHTML = `<div class="rename-result error">Error: ${err.message}</div>`;
+      }
+    });
+  }
+
+  openBulkRenameModal() {
+    if (this.selectedEntities.size === 0) {
+      alert('No entities selected');
+      return;
+    }
+
+    const selectedIds = Array.from(this.selectedEntities);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Bulk Rename (${selectedIds.length} entities)</h2>
+        <div class="modal-field">
+          <label>Target</label>
+          <select id="bulk-rename-target">
+            <option value="name">Friendly Name</option>
+            <option value="entity_id">Entity ID</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Find</label>
+          <input type="text" id="bulk-rename-find" placeholder="Text to find..." />
+        </div>
+        <div class="modal-field">
+          <label>Replace with</label>
+          <input type="text" id="bulk-rename-replace" placeholder="Replacement text..." />
+        </div>
+        <button class="btn btn-secondary" id="bulk-rename-preview">Preview Changes</button>
+        <div id="bulk-rename-preview-list"></div>
+        <div id="bulk-rename-result"></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="bulk-rename-cancel">Cancel</button>
+          <button class="btn btn-rename" id="bulk-rename-apply" disabled>Apply Rename</button>
+        </div>
+      </div>
+    `;
+
+    this.appendChild(overlay);
+
+    overlay.querySelector('#bulk-rename-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelector('#bulk-rename-preview').addEventListener('click', () => {
+      this.renderBulkRenamePreview(overlay, selectedIds);
+    });
+
+    // Also update preview on input change
+    ['#bulk-rename-find', '#bulk-rename-replace', '#bulk-rename-target'].forEach(sel => {
+      overlay.querySelector(sel).addEventListener('input', () => {
+        this.renderBulkRenamePreview(overlay, selectedIds);
+      });
+      overlay.querySelector(sel).addEventListener('change', () => {
+        this.renderBulkRenamePreview(overlay, selectedIds);
+      });
+    });
+
+    overlay.querySelector('#bulk-rename-apply').addEventListener('click', async () => {
+      await this.executeBulkRename(overlay, selectedIds);
+    });
+  }
+
+  renderBulkRenamePreview(overlay, selectedIds) {
+    const target = overlay.querySelector('#bulk-rename-target').value;
+    const findStr = overlay.querySelector('#bulk-rename-find').value;
+    const replaceStr = overlay.querySelector('#bulk-rename-replace').value;
+    const previewEl = overlay.querySelector('#bulk-rename-preview-list');
+    const applyBtn = overlay.querySelector('#bulk-rename-apply');
+
+    if (!findStr) {
+      previewEl.innerHTML = '';
+      applyBtn.disabled = true;
+      return;
+    }
+
+    let matchCount = 0;
+    const items = selectedIds.map(entityId => {
+      const entity = this.findEntityData(entityId);
+
+      if (target === 'name') {
+        const currentName = entity
+          ? (entity.name || entity.original_name || entityId.split('.')[1].replace(/_/g, ' '))
+          : entityId.split('.')[1].replace(/_/g, ' ');
+        if (currentName.includes(findStr)) {
+          const newName = currentName.replace(findStr, replaceStr);
+          matchCount++;
+          return `<div class="preview-item">
+            <div><strong>${entityId}</strong></div>
+            <div><span class="preview-old">${this.escapeHtml(currentName)}</span></div>
+            <div><span class="preview-new">${this.escapeHtml(newName)}</span></div>
+          </div>`;
+        }
+        return `<div class="preview-item preview-skip">${entityId} — no match</div>`;
+      } else {
+        if (entityId.includes(findStr)) {
+          const newId = entityId.replace(findStr, replaceStr);
+          matchCount++;
+          return `<div class="preview-item">
+            <div><span class="preview-old">${this.escapeHtml(entityId)}</span></div>
+            <div><span class="preview-new">${this.escapeHtml(newId)}</span></div>
+          </div>`;
+        }
+        return `<div class="preview-item preview-skip">${entityId} — no match</div>`;
+      }
+    });
+
+    previewEl.innerHTML = `
+      <div style="margin: 12px 0 4px; font-size: 13px; color: var(--secondary-text-color);">
+        ${matchCount} of ${selectedIds.length} entities will be renamed
+      </div>
+      <div class="preview-list">${items.join('')}</div>
+    `;
+    applyBtn.disabled = matchCount === 0;
+  }
+
+  async executeBulkRename(overlay, selectedIds) {
+    const target = overlay.querySelector('#bulk-rename-target').value;
+    const findStr = overlay.querySelector('#bulk-rename-find').value;
+    const replaceStr = overlay.querySelector('#bulk-rename-replace').value;
+    const resultEl = overlay.querySelector('#bulk-rename-result');
+    const applyBtn = overlay.querySelector('#bulk-rename-apply');
+
+    applyBtn.disabled = true;
+    applyBtn.textContent = 'Renaming...';
+
+    try {
+      const result = await this.hass.callWS({
+        type: 'entity_manager/bulk_rename',
+        entity_ids: selectedIds,
+        find: findStr,
+        replace: replaceStr,
+        target: target,
+      });
+
+      const successCount = result.success.length;
+      const failedCount = result.failed.length;
+      const skippedCount = result.skipped.length;
+
+      let msg = `Renamed ${successCount} entities.`;
+      if (skippedCount > 0) msg += ` Skipped ${skippedCount} (no match).`;
+      if (failedCount > 0) msg += ` Failed: ${failedCount}.`;
+
+      const isError = failedCount > 0 && successCount === 0;
+      resultEl.innerHTML = `<div class="rename-result ${isError ? 'error' : 'success'}">${msg}</div>`;
+
+      if (successCount > 0) {
+        this.selectedEntities.clear();
+        setTimeout(() => { overlay.remove(); this.loadData(); }, 1200);
+      } else {
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Apply Rename';
+      }
+    } catch (err) {
+      resultEl.innerHTML = `<div class="rename-result error">Error: ${err.message}</div>`;
+      applyBtn.disabled = false;
+      applyBtn.textContent = 'Apply Rename';
+    }
+  }
+
+  escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   setActiveFilter() {

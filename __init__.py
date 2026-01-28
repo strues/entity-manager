@@ -14,6 +14,7 @@ DOMAIN = "entity_manager"
 
 SERVICE_ENABLE_ENTITY = "enable_entity"
 SERVICE_DISABLE_ENTITY = "disable_entity"
+SERVICE_RENAME_ENTITY = "rename_entity"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -70,6 +71,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         DOMAIN,
         SERVICE_DISABLE_ENTITY,
         handle_disable_entity,
+    )
+
+    async def handle_rename_entity(call):
+        """Handle rename entity service call."""
+        entity_id = call.data.get("entity_id")
+        name = call.data.get("name")
+        new_entity_id = call.data.get("new_entity_id")
+        if entity_id:
+            try:
+                kwargs = {}
+                if name is not None:
+                    kwargs["name"] = name
+                if new_entity_id is not None:
+                    kwargs["new_entity_id"] = new_entity_id
+                if kwargs:
+                    entity_reg.async_update_entity(entity_id, **kwargs)
+                    _LOGGER.info("Renamed entity %s: %s", entity_id, kwargs)
+            except ValueError as err:
+                _LOGGER.error("Failed to rename entity %s: %s", entity_id, err)
+            except Exception as err:
+                _LOGGER.error("Unexpected error renaming entity %s: %s", entity_id, err)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RENAME_ENTITY,
+        handle_rename_entity,
     )
 
     # Register the sidebar panel
