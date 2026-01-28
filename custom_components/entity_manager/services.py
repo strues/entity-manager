@@ -11,23 +11,9 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-<<<<<<< Updated upstream
 SERVICE_ENABLE_ENTITY = "enable_entity"
 SERVICE_DISABLE_ENTITY = "disable_entity"
 SERVICE_RENAME_ENTITY = "rename_entity"
-
-
-async def async_setup_services(hass: HomeAssistant) -> None:
-    """Set up services for the Entity Manager integration."""
-
-    # Check if services are already registered
-    if hass.services.has_service(DOMAIN, SERVICE_ENABLE_ENTITY):
-        _LOGGER.debug("Services already registered, skipping")
-        return
-
-=======
-SERVICE_ENABLE_ENTITY = "enable_entity"
-SERVICE_DISABLE_ENTITY = "disable_entity"
 SERVICE_BULK_RENAME = "bulk_rename"
 
 BULK_RENAME_SCHEMA = vol.Schema(
@@ -51,20 +37,19 @@ BULK_RENAME_SCHEMA = vol.Schema(
 
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Set up services for the Entity Manager integration."""
-    
-    # Check if services are already registered
+
     if all(
         hass.services.has_service(DOMAIN, service)
         for service in (
             SERVICE_ENABLE_ENTITY,
             SERVICE_DISABLE_ENTITY,
+            SERVICE_RENAME_ENTITY,
             SERVICE_BULK_RENAME,
         )
     ):
         _LOGGER.debug("Services already registered, skipping")
         return
-    
->>>>>>> Stashed changes
+
     async def async_enable_entity(call: ServiceCall) -> None:
         """Enable an entity."""
         entity_id = call.data.get("entity_id")
@@ -81,21 +66,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 _LOGGER.error("Entity not found: %s", entity_id)
         else:
             _LOGGER.error("No entity_id provided")
-<<<<<<< Updated upstream
 
     async def async_disable_entity(call: ServiceCall) -> None:
         """Disable an entity."""
         entity_id = call.data.get("entity_id")
         registry = er.async_get(hass)
 
-=======
-    
-    async def async_disable_entity(call: ServiceCall) -> None:
-        """Disable an entity."""
-        entity_id = call.data.get("entity_id")
-        registry = er.async_get(hass)
-        
->>>>>>> Stashed changes
         if entity_id:
             entry = registry.async_get(entity_id)
             if entry:
@@ -105,7 +81,6 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 _LOGGER.info("Disabled entity: %s", entity_id)
             else:
                 _LOGGER.error("Entity not found: %s", entity_id)
-<<<<<<< Updated upstream
         else:
             _LOGGER.error("No entity_id provided")
 
@@ -125,11 +100,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Entity not found: %s", entity_id)
             return
 
-        kwargs = {}
+        kwargs: dict[str, str] = {}
         if name is not None:
             kwargs["name"] = name
         if new_entity_id is not None:
-            # Validate the target doesn't already exist
             existing = registry.async_get(new_entity_id)
             if existing is not None:
                 _LOGGER.error(
@@ -147,19 +121,6 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 _LOGGER.error("Failed to rename entity %s: %s", entity_id, err)
             except Exception as err:
                 _LOGGER.error("Unexpected error renaming entity %s: %s", entity_id, err)
-
-    hass.services.async_register(
-        DOMAIN, SERVICE_ENABLE_ENTITY, async_enable_entity
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_DISABLE_ENTITY, async_disable_entity
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_RENAME_ENTITY, async_rename_entity
-    )
-=======
-        else:
-            _LOGGER.error("No entity_id provided")
 
     async def async_bulk_rename(call: ServiceCall) -> None:
         """Bulk rename entities in the registry."""
@@ -243,7 +204,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 _LOGGER.info("Renamed entity: %s -> %s", entity_id, new_entity_id)
             except ValueError as err:
                 _LOGGER.error("Failed to rename %s -> %s: %s", entity_id, new_entity_id, err)
-    
+
     hass.services.async_register(
         DOMAIN, SERVICE_ENABLE_ENTITY, async_enable_entity
     )
@@ -251,9 +212,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         DOMAIN, SERVICE_DISABLE_ENTITY, async_disable_entity
     )
     hass.services.async_register(
+        DOMAIN, SERVICE_RENAME_ENTITY, async_rename_entity
+    )
+    hass.services.async_register(
         DOMAIN,
         SERVICE_BULK_RENAME,
         async_bulk_rename,
         schema=BULK_RENAME_SCHEMA,
     )
->>>>>>> Stashed changes

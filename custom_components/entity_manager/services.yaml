@@ -1,6 +1,6 @@
 enable_entity:
   name: Enable Entity
-  description: Enable a disabled entity.
+  description: Enable an entity.
   fields:
     entity_id:
       name: Entity ID
@@ -10,7 +10,6 @@ enable_entity:
       selector:
         entity:
 
-<<<<<<< Updated upstream
 disable_entity:
   name: Disable Entity
   description: Disable an entity.
@@ -29,13 +28,13 @@ rename_entity:
   fields:
     entity_id:
       name: Entity ID
-      description: The current entity ID to rename.
+      description: The entity ID to rename.
       required: true
       example: "sensor.my_sensor"
       selector:
         entity:
     name:
-      name: New Name
+      name: Name
       description: The new friendly name for the entity.
       required: false
       example: "Kitchen Temperature"
@@ -48,18 +47,6 @@ rename_entity:
       example: "sensor.kitchen_temp"
       selector:
         text:
-=======
-disable_entity:
-  name: Disable Entity
-  description: Disable an entity.
-  fields:
-    entity_id:
-      name: Entity ID
-      description: The entity ID to disable.
-      required: true
-      example: "sensor.my_sensor"
-      selector:
-        entity:
 
 bulk_rename:
   name: Bulk Rename
@@ -89,4 +76,3 @@ bulk_rename:
       default: true
       selector:
         boolean:
->>>>>>> Stashed changes
